@@ -5,6 +5,8 @@
 # See documentation in:
 # https://doc.scrapy.org/en/latest/topics/spider-middleware.html
 
+import requests
+import random
 from scrapy import signals
 
 
@@ -101,3 +103,16 @@ class MfwDownloaderMiddleware(object):
 
     def spider_opened(self, spider):
         spider.logger.info('Spider opened: %s' % spider.name)
+
+class ProxyMiddleware(object):
+
+    def __init__(self):
+        response = requests.get("http://127.0.0.1:8899/api/v1/proxies?limit=100")
+        self.proxies = [f"http://{i['ip']}:{i['port']}" for i in response.json()["proxies"]]
+
+    # overwrite process request
+    def process_request(self, request, spider):
+        # Set the location of the proxy
+        proxy = random.choice(self.proxies)
+        print(f'using proxy {proxy}')
+        request.meta['proxy'] = proxy

@@ -27,4 +27,5 @@ class MFW_MDD_CITY_ITEM(scrapy.Item):
     url = scrapy.Field()
     vistied_num = scrapy.Field()
     city_id = scrapy.Field()
+    country_id = scrapy.Field()
     desc = scrapy.Field()

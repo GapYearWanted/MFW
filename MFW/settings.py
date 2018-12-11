@@ -69,9 +69,11 @@ ITEM_PIPELINES = {
 }
 
 RETRY_ENABLED = True
-RETRY_TIMES = 2
+RETRY_TIMES = 10
 
 DOWNLOAD_TIMEOUT = 30
+
+RETRY_HTTP_CODES = [403]
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://doc.scrapy.org/en/latest/topics/autothrottle.html

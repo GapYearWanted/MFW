@@ -62,11 +62,13 @@ class MddCitySpider(scrapy.Spider):
         self.crawled_city = Set(client=cli, key=self.redis_crawled_key)
 
     def start_requests(self):
+        self.countryid2name = {}
         for country_info in self.country_table.find():
             if country_info['country_id'] in self.crawled_city:
                 #self.logger.info(f"{country_info['name']} is in redis! pass!")
                 continue
             self.logger.info(f"crawling country {country_info['name']}")
+            self.countryid2name[country_info['country_id']] = country_info['name']
             yield scrapy.Request(f"http://www.mafengwo.cn/mdd/citylist/{country_info['country_id']}.html",
                                  callback=self.parse,
                                  meta={"country_id": country_info["country_id"]})
@@ -81,6 +83,8 @@ class MddCitySpider(scrapy.Spider):
         }
 
     def _yield_post_page(self, meta):
+        self.logger.info(f"crawling page {meta['page_num']} of {self.countryid2name[meta['country_id']]}")
+        meta["retry_times"] = 1
         yield scrapy.FormRequest(
             "http://www.mafengwo.cn/mdd/base/list/pagedata_citylist",
             method="POST",
@@ -102,8 +106,8 @@ class MddCitySpider(scrapy.Spider):
         meta = response.meta
         meta["total_num"] = total_num
         meta["page_num"] = 2
-        if total_num%9==0:
-            meta["page_num"] = total_num//9+1
+        if mongo_num%9==0:
+            meta["page_num"] = mongo_num//9+1
         if total_num > self.CITY_PER_PAGE:
             yield from self._yield_post_page(meta)
 

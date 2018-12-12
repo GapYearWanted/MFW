@@ -29,3 +29,25 @@ class MFW_MDD_CITY_ITEM(scrapy.Item):
     city_id = scrapy.Field()
     country_id = scrapy.Field()
     desc = scrapy.Field()
+
+
+class MFW_MDD_JD_ITEM(scrapy.Item):
+    name = scrapy.Field()
+    score = scrapy.Field()
+    comment_num = scrapy.Field()
+    mention_num = scrapy.Field()
+    address = scrapy.Field()
+    recommend_reason = scrapy.Field()
+    jd_type = scrapy.Field()
+    url = scrapy.Field()
+    jd_id = scrapy.Field()
+    city_id = scrapy.Field()
+    rank = scrapy.Field()
+
+
+def generate_names(names):
+    print("    "+"\n    ".join([f"{name.strip()} = scrapy.Field()" for name in names.split(",")]))
+
+
+if __name__ == "__main__":
+    generate_names("name,score,comment_num,mention,address,recommend_reason,jd_type,url,jd_id,city_id")

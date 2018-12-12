@@ -4,15 +4,16 @@ import json
 import scrapy
 import time
 import uuid
-from hot_redis import Set, HotClient
+from hot_redis import Set, HotClient, Dict
 from scrapy.selector import Selector
-from MFW.items import MFW_MDD_COUNTRY_ITEM, MFW_MDD_CITY_ITEM
+from MFW.items import MFW_MDD_COUNTRY_ITEM, MFW_MDD_CITY_ITEM, MFW_MDD_JD_ITEM
 from MFW.utils.mongo_client import connect_table
+from MFW.utils.CONFIG import REDIS_HOST, REDIS_PASSWD
 
 
 MONGO_COUNTRY_TABLE = "mfw.mdd.country"
 MONGO_CITY_TABLE = "mfw.mdd.city"
-
+MONGO_JD_TABLE = "mfw.mdd.jd"
 
 
 class MddCountrySpider(scrapy.Spider):
@@ -50,7 +51,7 @@ class MddCitySpider(scrapy.Spider):
     }
     """
     name = "mdd_city"
-    redis_crawled_key = "mfw.mdd.crawled_city"
+    redis_crawled_key = "mfw:mdd:crawled_city"
 
     CITY_PER_PAGE = 9
 
@@ -58,7 +59,7 @@ class MddCitySpider(scrapy.Spider):
         super(MddCitySpider, self).__init__()
         self.country_table = connect_table(MONGO_COUNTRY_TABLE)
         self.city_table = connect_table(MONGO_CITY_TABLE)
-        cli = HotClient(host="127.0.0.1", port=6379)
+        cli = HotClient(host=REDIS_HOST, port=6379, password=REDIS_PASSWD)
         self.crawled_city = Set(client=cli, key=self.redis_crawled_key)
 
     def start_requests(self):
@@ -132,3 +133,57 @@ class MddCitySpider(scrapy.Spider):
             meta["page_num"] += 1
             yield from self._yield_post_page(meta)
 
+
+class MddJdSpider(scrapy.Spider):
+
+    name = "mdd_jd"
+    redis_crawled_key = "mfw:mdd:crawled_jd"
+    UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1"
+    JD_NUM_PER_PAGE = 5
+
+
+    def __init__(self):
+        super(MddJdSpider, self).__init__()
+        self.city_table = connect_table(MONGO_CITY_TABLE)
+        self.jd_table = connect_table(MONGO_JD_TABLE)
+        cli = HotClient(host=REDIS_HOST, port=6379, password=REDIS_PASSWD)
+        self.crawled_city = Dict(client=cli, key=self.redis_crawled_key)
+
+    def start_requests(self):
+        for city_info in self.city_table.find().limit(1):
+            print(city_info)
+            yield scrapy.Request(f"https://m.mafengwo.cn/jd/{city_info['city_id']}/gonglve.html",
+                                 headers={
+                                     "User-Agent": self.UA,
+                                     "Referer": f"https://m.mafengwo.cn/mdd/{city_info['city_id']}"
+                                 },
+                                 callback=self.parse_first_page,
+                                 meta={
+                                     "city_id": city_info["city_id"],
+                                     "page_num": 1
+                                 })
+
+    def parse_first_page(self, response):
+        print(response.text)
+        yield from self.parse_selector(response.css(".poi-list"), response.meta)
+
+    def parse_selector(self, selector, meta):
+        item = MFW_MDD_JD_ITEM()
+        for index, jd_tag in enumerate(selector.css("a.poi-li")):
+            item["name"] = jd_tag.css(".hd::text").extract_first()
+            item["score"] = jd_tag.css(".progress::attr(style)").extract_first().split(":")[1].split("%")[0]
+            nums = jd_tag.css(".num::text").extract()
+            if len(nums) == 2:
+                item["comment_num"], item["mention_num"] = nums
+            elif len(nums) == 1:
+                item["comment_num"], item["mention_num"] = nums[0], 0
+            else:
+                item["comment_num"], item["mention_num"] = 0, 0
+            item["jd_type"] = jd_tag.css(".m-t strong::text").extract_first().strip().split(" ")
+            item["address"] = jd_tag.css("p:not(.m-t) strong::text").extract_first().strip()
+            item["recommend_reason"] = jd_tag.css("comment::text").extract_first()
+            item["url"] = "https://m.mafengwo.cn"+jd_tag.css("::attr(href)").extract_first().split("?")[0]
+            item["jd_id"] = item["url"].split("/")[-1].split(".")[0]
+            item["city_id"] = meta["city_id"]
+            item["rank"] = (meta["page_num"]-1)*self.JD_NUM_PER_PAGE + index + 1
+            yield item

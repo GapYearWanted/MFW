@@ -8,6 +8,7 @@
 import requests
 import random
 from scrapy import signals
+from MFW.utils.CONFIG import PROXY_HOST
 
 
 class MfwSpiderMiddleware(object):
@@ -107,7 +108,7 @@ class MfwDownloaderMiddleware(object):
 class ProxyMiddleware(object):
 
     def __init__(self):
-        response = requests.get("http://127.0.0.1:8899/api/v1/proxies?limit=100")
+        response = requests.get(f"http://{PROXY_HOST}:8899/api/v1/proxies?limit=100")
         self.proxies = [f"http://{i['ip']}:{i['port']}" for i in response.json()["proxies"]]
 
     # overwrite process request

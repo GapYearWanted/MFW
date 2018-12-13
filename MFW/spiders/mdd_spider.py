@@ -151,7 +151,7 @@ class MddJdSpider(scrapy.Spider):
         self.crawled_city = Dict(client=cli, key=self.redis_crawled_key)
 
     def start_requests(self):
-        for city_info in self.city_table.find().limit(17):
+        for city_info in self.city_table.find():
             city_id = city_info["city_id"]
             city_name = city_info["name"]
             if city_id not in self.crawled_city:
@@ -171,6 +171,9 @@ class MddJdSpider(scrapy.Spider):
                 crawled_page_num = int(self.crawled_city[city_id])
                 if crawled_page_num == -1:
                     self.logger.info(f"all jd of {city_name}({city_id}) is crawled.")
+                    continue
+                elif crawled_page_num == 20:
+                    self.logger.info(f"page of {city_name}({city_id}) is 20.")
                     continue
                 yield from self.crawl_ajax_page(meta={
                     "city_id": city_id,
@@ -208,6 +211,9 @@ class MddJdSpider(scrapy.Spider):
         yield from self.parse_selector(Selector(text=data["html"]), meta)
         if data["has_more"] == 1:
             meta["page_num"] += 1
+            if meta["page_num"] == 20:
+                self.logger.info(f"page of {meta['city_name']}({meta['city_id']}) is 20, quit.")
+                return
             yield from self.crawl_ajax_page(meta)
         else:
             self.crawled_city[meta["city_id"]] = -1
@@ -235,3 +241,5 @@ class MddJdSpider(scrapy.Spider):
             item["crawl_time"] = time.time()
             yield item
         self.crawled_city[meta["city_id"]] = meta["page_num"]
+
+#curl 'https://m.mafengwo.cn/jd/11214/gonglve.html?page=21&is_ajax=1' -H 'User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1' -H 'accept: application/json, text/javascript, */*; q=0.01' -H 'Referer: https://m.mafengwo.cn/jd/11214/gonglve.html'

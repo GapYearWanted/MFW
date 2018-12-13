@@ -43,6 +43,8 @@ class MFW_MDD_JD_ITEM(scrapy.Item):
     jd_id = scrapy.Field()
     city_id = scrapy.Field()
     rank = scrapy.Field()
+    date = scrapy.Field()
+    crawl_time = scrapy.Field()
 
 
 def generate_names(names):

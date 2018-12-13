@@ -4,6 +4,7 @@ import json
 import scrapy
 import time
 import uuid
+from datetime import datetime
 from hot_redis import Set, HotClient, Dict
 from scrapy.selector import Selector
 from MFW.items import MFW_MDD_COUNTRY_ITEM, MFW_MDD_CITY_ITEM, MFW_MDD_JD_ITEM
@@ -150,9 +151,12 @@ class MddJdSpider(scrapy.Spider):
         self.crawled_city = Dict(client=cli, key=self.redis_crawled_key)
 
     def start_requests(self):
-        for city_info in self.city_table.find().limit(1):
-            print(city_info)
-            yield scrapy.Request(f"https://m.mafengwo.cn/jd/{city_info['city_id']}/gonglve.html",
+        for city_info in self.city_table.find().limit(17):
+            city_id = city_info["city_id"]
+            city_name = city_info["name"]
+            if city_id not in self.crawled_city:
+                self.logger.info(f"crawl page 1 of {city_name}({city_id})")
+                yield scrapy.Request(f"https://m.mafengwo.cn/jd/{city_info['city_id']}/gonglve.html",
                                  headers={
                                      "User-Agent": self.UA,
                                      "Referer": f"https://m.mafengwo.cn/mdd/{city_info['city_id']}"
@@ -160,12 +164,53 @@ class MddJdSpider(scrapy.Spider):
                                  callback=self.parse_first_page,
                                  meta={
                                      "city_id": city_info["city_id"],
+                                     "city_name": city_name,
                                      "page_num": 1
                                  })
+            else:
+                crawled_page_num = int(self.crawled_city[city_id])
+                if crawled_page_num == -1:
+                    self.logger.info(f"all jd of {city_name}({city_id}) is crawled.")
+                    continue
+                yield from self.crawl_ajax_page(meta={
+                    "city_id": city_id,
+                    "city_name": city_name,
+                    "page_num": crawled_page_num + 1
+                })
+
+    def crawl_ajax_page(self, meta):
+        meta["retry_times"] = 1
+        self.logger.info(f"crawl page {meta['page_num']} of {meta['city_name']}({meta['city_id']})")
+        yield scrapy.Request(
+            f"https://m.mafengwo.cn/jd/{meta['city_id']}/gonglve.html?page={meta['page_num']}&is_ajax=1",
+            headers={
+                "Referer": f"https://m.mafengwo.cn/jd/{meta['city_id']}/gonglve.html",
+                "User-Agent": self.UA
+            },
+            meta=meta,
+            callback=self.parse_ajax_page,
+        )
+
 
     def parse_first_page(self, response):
-        print(response.text)
-        yield from self.parse_selector(response.css(".poi-list"), response.meta)
+        meta = response.meta
+        yield from self.parse_selector(response.css(".poi-list"),meta)
+        more_tag = response.css("#btn_getmore")
+        if more_tag:
+            meta["page_num"] += 1
+            yield from self.crawl_ajax_page(response.meta)
+        else:
+            self.crawled_city[response.meta["city_id"]] = -1
+
+    def parse_ajax_page(self, response):
+        meta = response.meta
+        data = json.loads(response.text)
+        yield from self.parse_selector(Selector(text=data["html"]), meta)
+        if data["has_more"] == 1:
+            meta["page_num"] += 1
+            yield from self.crawl_ajax_page(meta)
+        else:
+            self.crawled_city[meta["city_id"]] = -1
 
     def parse_selector(self, selector, meta):
         item = MFW_MDD_JD_ITEM()
@@ -181,9 +226,12 @@ class MddJdSpider(scrapy.Spider):
                 item["comment_num"], item["mention_num"] = 0, 0
             item["jd_type"] = jd_tag.css(".m-t strong::text").extract_first().strip().split(" ")
             item["address"] = jd_tag.css("p:not(.m-t) strong::text").extract_first().strip()
-            item["recommend_reason"] = jd_tag.css("comment::text").extract_first()
+            item["recommend_reason"] = jd_tag.css(".comment::text").extract_first()
             item["url"] = "https://m.mafengwo.cn"+jd_tag.css("::attr(href)").extract_first().split("?")[0]
             item["jd_id"] = item["url"].split("/")[-1].split(".")[0]
             item["city_id"] = meta["city_id"]
             item["rank"] = (meta["page_num"]-1)*self.JD_NUM_PER_PAGE + index + 1
+            item["date"] = str(datetime.now().date())
+            item["crawl_time"] = time.time()
             yield item
+        self.crawled_city[meta["city_id"]] = meta["page_num"]

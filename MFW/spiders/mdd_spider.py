@@ -256,7 +256,7 @@ class MddMsSpider(scrapy.Spider):
 
 
     def start_requests(self):
-        for city_info in self.city_table.find().limit(1):
+        for city_info in self.city_table.find():
             self.logger.info(f"crawl ms of city {city_info['name']}.")
             yield scrapy.Request(f"http://www.mafengwo.cn/cy/{city_info['city_id']}/gonglve.html",
                                  callback=self.parse,
@@ -264,7 +264,6 @@ class MddMsSpider(scrapy.Spider):
                                      "city_id": city_info['city_id'],
                                      "city_name": city_info['name']
                                  })
-            break
 
     def parse(self, response):
         for index, rank_item in enumerate(response.css(".m-rankList .rank-item")):

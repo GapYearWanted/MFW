@@ -290,7 +290,7 @@ class MddMsShopSpider(scrapy.Spider):
         self.crawled_poiid = connect_table(MONGO_MS_SHOP_TABLE).distinct("poi_id")
 
     def start_requests(self):
-        for city_info in self.city_table.find({"city_id": 16108}):
+        for city_info in self.city_table.find():
             self.logger.info(f"crawl ms shop of city {city_info['name']}.")
             yield scrapy.Request(f"http://www.mafengwo.cn/cy/{city_info['city_id']}/0-0-0-2-0-1.html",
                                  callback=self.parse_list,
@@ -298,7 +298,6 @@ class MddMsShopSpider(scrapy.Spider):
                                      "city_id": city_info['city_id'],
                                      "city_name": city_info['name']
                                  })
-            break
 
     def parse_list(self, response):
         for href in response.css(".poi-list .item .title a::attr(href)").extract():

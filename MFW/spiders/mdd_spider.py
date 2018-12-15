@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from hot_redis import Set, HotClient, Dict
 from scrapy.selector import Selector
-from MFW.items import MFW_MDD_COUNTRY_ITEM, MFW_MDD_CITY_ITEM, MFW_MDD_JD_ITEM, MFW_MDD_MS_ITEM
+from MFW.items import MFW_MDD_COUNTRY_ITEM, MFW_MDD_CITY_ITEM, MFW_MDD_JD_ITEM, MFW_MDD_MS_ITEM, MFW_MDD_MS_SHOP_ITEM
 from MFW.utils.mongo_client import connect_table
 from MFW.utils.CONFIG import REDIS_HOST, REDIS_PASSWD
 
@@ -15,6 +15,7 @@ from MFW.utils.CONFIG import REDIS_HOST, REDIS_PASSWD
 MONGO_COUNTRY_TABLE = "mfw.mdd.country"
 MONGO_CITY_TABLE = "mfw.mdd.city"
 MONGO_JD_TABLE = "mfw.mdd.jd"
+MONGO_MS_SHOP_TABLE = "mfw.mdd.ms_shop"
 
 
 class MddCountrySpider(scrapy.Spider):
@@ -254,7 +255,6 @@ class MddMsSpider(scrapy.Spider):
         super(MddMsSpider, self).__init__()
         self.city_table = connect_table(MONGO_CITY_TABLE)
 
-
     def start_requests(self):
         for city_info in self.city_table.find():
             self.logger.info(f"crawl ms of city {city_info['name']}.")
@@ -264,6 +264,7 @@ class MddMsSpider(scrapy.Spider):
                                      "city_id": city_info['city_id'],
                                      "city_name": city_info['name']
                                  })
+
 
     def parse(self, response):
         for index, rank_item in enumerate(response.css(".m-rankList .rank-item")):
@@ -276,3 +277,83 @@ class MddMsSpider(scrapy.Spider):
             item["url"] = "http://www.mafengwo.cn" + rank_item.css("a::attr(href)").extract_first()
             item["rank"] = index
             yield item
+
+
+
+class MddMsShopSpider(scrapy.Spider):
+
+    name = "mdd_ms_shop"
+
+    def __init__(self):
+        super(MddMsShopSpider, self).__init__()
+        self.city_table = connect_table(MONGO_CITY_TABLE)
+        self.crawled_poiid = connect_table(MONGO_MS_SHOP_TABLE).distinct("poi_id")
+
+    def start_requests(self):
+        for city_info in self.city_table.find({"city_id": 16108}):
+            self.logger.info(f"crawl ms shop of city {city_info['name']}.")
+            yield scrapy.Request(f"http://www.mafengwo.cn/cy/{city_info['city_id']}/0-0-0-2-0-1.html",
+                                 callback=self.parse_list,
+                                 meta={
+                                     "city_id": city_info['city_id'],
+                                     "city_name": city_info['name']
+                                 })
+            break
+
+    def parse_list(self, response):
+        for href in response.css(".poi-list .item .title a::attr(href)").extract():
+            poi_id = href.split("/")[-1].split(".")[0]
+            if int(poi_id) in self.crawled_poiid:
+                continue
+            url = "http://www.mafengwo.cn" + href
+            yield scrapy.Request(url,
+                                 callback=self.parse_detail,
+                                 meta=response.meta)
+        next_page = response.css(".page-hotel .next::attr(href)").extract_first()
+        if next_page:
+            yield scrapy.Request(f"http://www.mafengwo.cn/cy/{response.meta['city_id']}/{next_page}",
+                                 callback=self.parse_list,
+                                 meta=response.meta)
+
+
+    def parse_detail(self, response):
+        regex_result = response.css("head script").re("window.Env =(.*);")
+        item = MFW_MDD_MS_SHOP_ITEM()
+        item["origin_data"] = json.loads(regex_result[0])
+        item["name"] = item["origin_data"]["poiname"]
+        item["poi_id"] = item["origin_data"]["poiid"]
+        item["comment_num"] = item["origin_data"]["comment_count"]
+        item["location"] = {
+            "lat": item["origin_data"]["lat"],
+            "lng": item["origin_data"]["lng"],
+        }
+
+        item["city_name"] = response.meta["city_name"]
+        item["city_id"] = response.meta["city_id"]
+        item["url"] = response.url
+
+        item["score"] = float(response.css(".score-info em::text").extract_first())
+
+        item["score_range"] = {}
+        for score_detail_tag in response.css(".reviews .col:not(.col-tags) .rev-list .filter-rank"):
+            score = score_detail_tag.css("::attr(data-filter)").extract_first()
+            num = score_detail_tag.css("::attr(data-count)").extract_first()
+            item["score_range"][score] = int(num)
+
+        item["comment_tag"] = {}
+        for comment_tag in response.css(".reviews .col-tags .rev-list .filter-word"):
+            tag_name = comment_tag.css(".rank-tag::text").extract_first()
+            num = comment_tag.css(".rank-count::text").re("(\d+)")[0]
+            item["comment_tag"][tag_name] = int(num)
+
+        item["view_num"] = response.css(".s-view::text").extract_first()
+        item["info"] = {}
+        info_tag = response.css(".poi-info .bd")
+        titles = info_tag.css("h3::text").extract()
+        contents = info_tag.css("p::text").extract()
+        if len(titles) == len(contents):
+           for title, content in zip(titles, contents):
+               item["info"][title] = content
+        else:
+            self.logger.warning(f"title num not equal to content num in {response.url}!")
+        yield item

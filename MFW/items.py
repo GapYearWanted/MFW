@@ -61,9 +61,26 @@ class MFW_MDD_MS_ITEM(scrapy.Item):
     city_name = scrapy.Field()
 
 
+
+class MFW_MDD_MS_SHOP_ITEM(scrapy.Item):
+    name = scrapy.Field()
+    city_name = scrapy.Field()
+    city_id = scrapy.Field()
+    comment_num = scrapy.Field()
+    score = scrapy.Field()
+    poi_id = scrapy.Field()
+    location = scrapy.Field()
+    origin_data = scrapy.Field()
+    score_range = scrapy.Field()
+    comment_tag = scrapy.Field()
+    view_num = scrapy.Field()
+    info = scrapy.Field()
+    url = scrapy.Field()
+
+
 def generate_names(names):
     print("    "+"\n    ".join([f"{name.strip()} = scrapy.Field()" for name in names.split(",")]))
 
 
 if __name__ == "__main__":
-    generate_names("name,comment_num,mention_num,rank,url,city_id")
+    generate_names("name,city_name,city_id,comment_num,score,poi_id,location,origin_data,score_range,comment_tag")

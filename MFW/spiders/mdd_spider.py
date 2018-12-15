@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 from hot_redis import Set, HotClient, Dict
 from scrapy.selector import Selector
-from MFW.items import MFW_MDD_COUNTRY_ITEM, MFW_MDD_CITY_ITEM, MFW_MDD_JD_ITEM
+from MFW.items import MFW_MDD_COUNTRY_ITEM, MFW_MDD_CITY_ITEM, MFW_MDD_JD_ITEM, MFW_MDD_MS_ITEM
 from MFW.utils.mongo_client import connect_table
 from MFW.utils.CONFIG import REDIS_HOST, REDIS_PASSWD
 
@@ -211,7 +211,7 @@ class MddJdSpider(scrapy.Spider):
         yield from self.parse_selector(Selector(text=data["html"]), meta)
         if data["has_more"] == 1:
             meta["page_num"] += 1
-            if meta["page_num"] == 20:
+            if meta["page_num"] == 21:
                 self.logger.info(f"page of {meta['city_name']}({meta['city_id']}) is 20, quit.")
                 return
             yield from self.crawl_ajax_page(meta)
@@ -243,3 +243,37 @@ class MddJdSpider(scrapy.Spider):
         self.crawled_city[meta["city_id"]] = meta["page_num"]
 
 #curl 'https://m.mafengwo.cn/jd/11214/gonglve.html?page=21&is_ajax=1' -H 'User-Agent: Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1' -H 'accept: application/json, text/javascript, */*; q=0.01' -H 'Referer: https://m.mafengwo.cn/jd/11214/gonglve.html'
+#curl 'https://m.mafengwo.cn/rest/hotel/hotels/?data_style=mobile&filter%5Bmddid%5D=10065&filter%5Barea_id%5D=-1&filter%5Bpoi_id%5D=&filter%5Bdistance%5D=10000&filter%5Bcheck_in%5D=2019-01-21&filter%5Bcheck_out%5D=2019-01-22&filter%5Bprice_min%5D=&filter%5Bprice_max%5D=&filter%5Btag_ids%5D=&filter%5Bsort_type%5D=comment&filter%5Bsort_flag%5D=DESC&filter%5Bhas_booking_rooms%5D=0&filter%5Bhas_faved%5D=0&filter%5Bkeyword%5D=&filter%5Bboundary%5D=0&page%5Bmode%5D=sequential&page%5Bboundary%5D=0&page%5Bnum%5D=20&_ts=1544673253804&_sn=46a342beai' -H 'cookie: PHPSESSID=s2194rnic8vf85ajjsc5oot674; mfw_uuid=5c11d7e3-6545-8d79-3de4-6c375664ef49; oad_n=a%3A3%3A%7Bs%3A3%3A%22oid%22%3Bi%3A1029%3Bs%3A2%3A%22dm%22%3Bs%3A13%3A%22m.mafengwo.cn%22%3Bs%3A2%3A%22ft%22%3Bs%3A19%3A%222018-12-13+11%3A54%3A11%22%3B%7D; __mfwlv=1544673252; __mfwvn=1; __mfwlt=1544673252' -H 'accept-encoding: gzip, deflate, br' -H 'accept-language: zh-CN,zh;q=0.9' -H 'user-agent: Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1' -H 'accept: application/json, text/javascript, */*; q=0.01' -H 'referer: https://m.mafengwo.cn/hotel/10065/?checkin=2019-01-21&checkout=2019-01-22' -H 'authority: m.mafengwo.cn' -H 'x-requested-with: XMLHttpRequest' --compressed
+
+
+class MddMsSpider(scrapy.Spider):
+
+    name = "mdd_ms"
+
+    def __init__(self):
+        super(MddMsSpider, self).__init__()
+        self.city_table = connect_table(MONGO_CITY_TABLE)
+
+
+    def start_requests(self):
+        for city_info in self.city_table.find().limit(1):
+            self.logger.info(f"crawl ms of city {city_info['name']}.")
+            yield scrapy.Request(f"http://www.mafengwo.cn/cy/{city_info['city_id']}/gonglve.html",
+                                 callback=self.parse,
+                                 meta={
+                                     "city_id": city_info['city_id'],
+                                     "city_name": city_info['name']
+                                 })
+            break
+
+    def parse(self, response):
+        for index, rank_item in enumerate(response.css(".m-rankList .rank-item")):
+            item = MFW_MDD_MS_ITEM()
+            item["name"] = rank_item.css("h3::text").extract_first()
+            item["recommend_num"] = rank_item.css(".num-blue::text").extract_first()
+            item["mention_num"] = rank_item.css(".trend::text").extract_first()
+            item["city_id"] = response.meta["city_id"]
+            item["city_name"] = response.meta["city_name"]
+            item["url"] = "http://www.mafengwo.cn" + rank_item.css("a::attr(href)").extract_first()
+            item["rank"] = index
+            print(item)

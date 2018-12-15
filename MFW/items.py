@@ -14,6 +14,7 @@ class MfwItem(scrapy.Item):
     pass
 
 class MFW_MDD_COUNTRY_ITEM(scrapy.Item):
+    # 目的地国家
     name = scrapy.Field()
     url = scrapy.Field()
     tag = scrapy.Field()
@@ -22,6 +23,7 @@ class MFW_MDD_COUNTRY_ITEM(scrapy.Item):
 
 
 class MFW_MDD_CITY_ITEM(scrapy.Item):
+    # 目的地城市
     name = scrapy.Field()
     name_en = scrapy.Field()
     url = scrapy.Field()
@@ -32,6 +34,7 @@ class MFW_MDD_CITY_ITEM(scrapy.Item):
 
 
 class MFW_MDD_JD_ITEM(scrapy.Item):
+    # 目的地景点
     name = scrapy.Field()
     score = scrapy.Field()
     comment_num = scrapy.Field()
@@ -47,9 +50,20 @@ class MFW_MDD_JD_ITEM(scrapy.Item):
     crawl_time = scrapy.Field()
 
 
+class MFW_MDD_MS_ITEM(scrapy.Item):
+    # 目的地美食
+    name = scrapy.Field()
+    recommend_num = scrapy.Field()
+    mention_num = scrapy.Field()
+    rank = scrapy.Field()
+    url = scrapy.Field()
+    city_id = scrapy.Field()
+    city_name = scrapy.Field()
+
+
 def generate_names(names):
     print("    "+"\n    ".join([f"{name.strip()} = scrapy.Field()" for name in names.split(",")]))
 
 
 if __name__ == "__main__":
-    generate_names("name,score,comment_num,mention,address,recommend_reason,jd_type,url,jd_id,city_id")
+    generate_names("name,comment_num,mention_num,rank,url,city_id")

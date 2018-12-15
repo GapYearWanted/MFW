@@ -8,7 +8,7 @@
 from pymongo.errors import DuplicateKeyError
 from MFW.utils.mysql_client import connect, get_table
 from MFW.utils.mongo_client import connect_table
-from MFW.items import MFW_MDD_COUNTRY_ITEM, MFW_MDD_CITY_ITEM, MFW_MDD_JD_ITEM
+from MFW.items import MFW_MDD_COUNTRY_ITEM, MFW_MDD_CITY_ITEM, MFW_MDD_JD_ITEM, MFW_MDD_MS_ITEM
 
 DB = "crawler"
 
@@ -17,6 +17,7 @@ class MfwPipeline(object):
         MFW_MDD_CITY_ITEM: "mfw.mdd.city",
         MFW_MDD_COUNTRY_ITEM: "mfw.mdd.country",
         MFW_MDD_JD_ITEM: "mfw.mdd.jd",
+        MFW_MDD_MS_ITEM: "mfw.mdd.ms",
     }
 
     def __init__(self):

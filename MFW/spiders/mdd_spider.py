@@ -316,6 +316,12 @@ class MddMsShopSpider(scrapy.Spider):
 
 
     def parse_detail(self, response):
+
+        ms_check = response.css("#_j_sharecnt[data-cs-t='美食详情页']")
+        if not ms_check:
+            self.logger.info(f"{response.url} is not a ms shop!")
+            return
+
         regex_result = response.css("head script").re("window.Env =(.*);")
         item = MFW_MDD_MS_SHOP_ITEM()
         item["origin_data"] = json.loads(regex_result[0])

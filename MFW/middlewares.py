@@ -120,6 +120,7 @@ class ProxyMiddleware(object):
         # Set the location of the proxy
         if self.total_use_count >= 1000:
             self.refresh_proxies()
+            self.total_use_count = 0
         proxy = random.choice(self.proxies)
         self.total_use_count += 1
         request.meta['proxy'] = proxy

@@ -107,19 +107,11 @@ class MfwDownloaderMiddleware(object):
 
 class ProxyMiddleware(object):
 
-    def __init__(self):
-        self.refresh_proxies()
-        self.total_use_count = 0
-
-    def refresh_proxies(self):
-        response = requests.get(f"http://{PROXY_HOST}:8899/api/v1/proxies?limit=100")
-        self.proxies = [f"http://{i['ip']}:{i['port']}" for i in response.json()["proxies"]]
+    def get_proxy(self):
+        response = requests.get(f"http://{PROXY_HOST}:8888/get_proxy?tmpl=mfw")
+        return response.text
 
     # overwrite process request
     def process_request(self, request, spider):
         # Set the location of the proxy
-        if self.total_use_count >= 1000:
-            self.refresh_proxies()
-        proxy = random.choice(self.proxies)
-        self.total_use_count += 1
-        request.meta['proxy'] = proxy
+        request.meta['proxy'] = self.get_proxy()

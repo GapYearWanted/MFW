@@ -274,5 +274,5 @@ class MddMsSpider(scrapy.Spider):
             item["city_id"] = response.meta["city_id"]
             item["city_name"] = response.meta["city_name"]
             item["url"] = "http://www.mafengwo.cn" + rank_item.css("a::attr(href)").extract_first()
-            item["rank"] = index
+            item["rank"] = index + 1
             yield item

@@ -33,7 +33,6 @@ class MfwPipeline(object):
             if isinstance(item, _class):
                 table = self.tables[self.relation[_class]]
                 try:
-                    print(item)
                     table.insert(dict(item))
                 except DuplicateKeyError:
                     print("duplicate keys")

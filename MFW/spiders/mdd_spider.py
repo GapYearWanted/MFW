@@ -4,6 +4,7 @@ import json
 import scrapy
 import time
 import uuid
+from scrapy_redis.spiders import RedisSpider
 from datetime import datetime
 from hot_redis import Set, HotClient, Dict
 from scrapy.selector import Selector
@@ -44,7 +45,7 @@ class MddCountrySpider(scrapy.Spider):
 
 
 
-class MddCitySpider(scrapy.Spider):
+class MddCitySpider(RedisSpider):
     """
     meta dict: {
         "country_id": 所属国家id,

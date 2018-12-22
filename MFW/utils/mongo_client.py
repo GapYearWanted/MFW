@@ -2,12 +2,14 @@
 
 
 import pymongo
-from MFW.utils.CONFIG import MONGO_HOST, MONGO_PORT
+from MFW.utils.CONFIG import MONGO_HOST, MONGO_PORT, MONGO_PASSWD, MONGO_USER
 
 
 def connect_table(tablename):
     client = pymongo.MongoClient(host=MONGO_HOST, port=MONGO_PORT)
-    return client["crawler"][tablename]
+    db = client.crawler
+    db.authenticate(MONGO_USER, MONGO_PASSWD)
+    return db[tablename]
 
 
 if __name__ == "__main__":

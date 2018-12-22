@@ -8,7 +8,7 @@
 import requests
 import random
 from scrapy import signals
-from MFW.utils.CONFIG import PROXY_HOST
+from MFW.utils.CONFIG import PROXY_API
 
 
 class MfwSpiderMiddleware(object):
@@ -107,11 +107,19 @@ class MfwDownloaderMiddleware(object):
 
 class ProxyMiddleware(object):
 
-    def get_proxy(self):
-        response = requests.get(f"http://{PROXY_HOST}:8888/get_proxy?tmpl=mfw")
-        return response.text
+    def __init__(self):
+        self.refresh_proxies()
+        self.total_use_count = 0
+
+    def refresh_proxies(self):
+        response = requests.get(PROXY_API)
+        self.proxies = [f"http://{i['ip']}:{i['port']}" for i in response.json()["proxies"]]
 
     # overwrite process request
     def process_request(self, request, spider):
         # Set the location of the proxy
-        request.meta['proxy'] = self.get_proxy()
+        if self.total_use_count >= 1000:
+            self.refresh_proxies()
+        proxy = random.choice(self.proxies)
+        self.total_use_count += 1
+        request.meta['proxy'] = proxy

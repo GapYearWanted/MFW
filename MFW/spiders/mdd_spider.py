@@ -74,7 +74,8 @@ class MddCitySpider(scrapy.Spider):
             self.countryid2name[country_info['country_id']] = country_info['name']
             yield scrapy.Request(f"http://www.mafengwo.cn/mdd/citylist/{country_info['country_id']}.html",
                                  callback=self.parse,
-                                 meta={"country_id": country_info["country_id"]})
+                                 meta={"country_id": country_info["country_id"],
+                                       "country_name": country_info["name"]})
 
     def _generate_post_data(self, mddid, page_num):
         # 拼凑翻页时的post data
@@ -105,7 +106,7 @@ class MddCitySpider(scrapy.Spider):
             self.logger.info(f"all city is crawled of country {country_id}")
             self.crawled_city.add(country_id)
             return
-        yield from self.parse_city_selector(response.css("#citylistlist"), country_id)
+        yield from self.parse_city_selector(response.css("#citylistlist"), country_id, response.meta["country_name"])
         meta = response.meta
         meta["total_num"] = total_num
         meta["page_num"] = 2
@@ -114,7 +115,7 @@ class MddCitySpider(scrapy.Spider):
         if total_num > self.CITY_PER_PAGE:
             yield from self._yield_post_page(meta)
 
-    def parse_city_selector(self, selector, country_id):
+    def parse_city_selector(self, selector, country_id, country_name):
         for city_tag in selector.css(".item"):
             item = MFW_MDD_CITY_ITEM()
             item["name"] = city_tag.css(".title::text").extract_first().strip()
@@ -124,13 +125,14 @@ class MddCitySpider(scrapy.Spider):
             item["url"] = "http://www.mafengwo.cn" + city_tag.css("a::attr(href)").extract_first()
             item["city_id"] = int(item["url"].split('/')[-1].split('.')[0])
             item["country_id"] = country_id
+            item["country"] = country_name
             yield item
 
     def parse_post(self, response):
         self.logger.info(f"parsing post response of {response.meta}")
         meta = response.meta
         data = json.loads(response.text)
-        yield from self.parse_city_selector(Selector(text=data["list"]), meta["country_id"])
+        yield from self.parse_city_selector(Selector(text=data["list"]), meta["country_id"], meta["country_name"])
         if meta["page_num"]*self.CITY_PER_PAGE < meta["total_num"]:
             meta["page_num"] += 1
             yield from self._yield_post_page(meta)

@@ -31,6 +31,7 @@ class MFW_MDD_CITY_ITEM(scrapy.Item):
     city_id = scrapy.Field()
     country_id = scrapy.Field()
     desc = scrapy.Field()
+    country = scrapy.Field()
 
 
 class MFW_MDD_JD_ITEM(scrapy.Item):

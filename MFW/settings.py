@@ -9,6 +9,9 @@
 #     https://doc.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://doc.scrapy.org/en/latest/topics/spider-middleware.html
 
+from MFW.utils.CONFIG import REDIS_HOST, REDIS_PASSWD
+
+
 BOT_NAME = 'MFW'
 
 SPIDER_MODULES = ['MFW.spiders']
@@ -77,7 +80,7 @@ RETRY_HTTP_CODES = [403]
 
 SCHEDULER = "scrapy_redis.scheduler.Scheduler"
 DUPEFILTER_CLASS = "scrapy_redis.dupefilter.RFPDupeFilter"
-REDIS_URL = 'redis://:4pYr{M7Y84Sa3KQ@129.28.83.124:6379/0'
+REDIS_URL = f'redis://:{REDIS_PASSWD}@{REDIS_HOST}:6379/1'
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://doc.scrapy.org/en/latest/topics/autothrottle.html

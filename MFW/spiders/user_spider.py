@@ -25,6 +25,22 @@ class UserSpider(scrapy.Spider):
         table = connect_table(self.mongo_table)
         self.crawled_user_id = set(table.distinct("user_id"))
 
+    def start_requests(self):
+        for url in self.start_urls:
+            yield scrapy.Request(url)
+        for user_id in self.crawled_user_id:
+            uid = str(uuid.uuid4())
+            yield scrapy.Request(f"http://www.mafengwo.cn/u/{user_id}.html",
+                                cookies = {
+                                              "mfw_uuid": uid,
+                                              "__mfwuuid": uid,
+                                          },
+                                callback = self.user_parse,
+                                meta = {
+                                    "user_id": user_id
+                                }
+            )
+
     def parse(self, response):
         for url in response.css('a::attr(href)').extract():
             if 'javascript' in url:

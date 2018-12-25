@@ -15,7 +15,7 @@ class UserSpider(scrapy.Spider):
     name = "user"
     mongo_table = "mfw.user"
 
-    start_urls = ["http://www.mafengwo.cn/"]
+    start_urls = ["http://www.mafengwo.cn/wenda/"]
     user_regex = re.compile("(http://www\.mafengwo\.cn/u/(\d+)\.html)")
     int_list = ["level", "follow_num", "fans_num", "honey_num", "vistied_country", "visitied_mdd", "comment_num","user_id"]
 
@@ -64,6 +64,9 @@ class UserSpider(scrapy.Spider):
                                      meta={
                                          "user_id": user_id
                                      })
+            else:
+                if response.meta["depth"] <= 2:
+                    yield scrapy.Request(url)
 
     def user_parse(self, response):
         yield from self.parse(response)

@@ -33,10 +33,9 @@ class UserSpider(scrapy.Spider):
         for url in response.css('a::attr(href)').extract():
             if 'javascript' in url:
                 continue
-            if 'mafengwo.cn' not in url:
-                continue
             if not url.startswith("http"):
                 url = HOST + url
+            print(url, "wenda/detail" in url)
             regex_result =  self.user_regex.findall(url)
             if regex_result:
                 uid = str(uuid.uuid4())

@@ -52,9 +52,8 @@ class UserSpider(scrapy.Spider):
                                      meta={
                                          "user_id": user_id
                                      })
-            else:
-                if response.meta["depth"] <= 10:
-                    yield scrapy.Request(url)
+            if "wenda/detail" in url :
+                yield scrapy.Request(url)
 
     def user_parse(self, response):
         yield from self.parse(response)

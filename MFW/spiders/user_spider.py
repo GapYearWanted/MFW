@@ -39,6 +39,7 @@ class UserSpider(scrapy.Spider):
                 yield scrapy.Request(url)
 
     def user_parse(self, response):
+        yield from self.parse(response)
         item = UserItem()
         item["user_id"] = response.url.split("/")[-1].split('.')[0]
         item["name"] = response.css(".MAvaName::text").extract_first().strip()

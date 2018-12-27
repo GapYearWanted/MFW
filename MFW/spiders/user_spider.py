@@ -17,6 +17,7 @@ class UserSpider(scrapy.Spider):
 
     start_urls = ["http://www.mafengwo.cn/wenda/"]
     user_regex = re.compile("(http://www\.mafengwo\.cn/u/(\d+)\.html)")
+    wenda_user_regex = re.compile("/wenda/u/(\d+)/answer.html")
     int_list = ["level", "follow_num", "fans_num", "honey_num", "vistied_country", "visitied_mdd", "comment_num","user_id"]
 
 
@@ -35,7 +36,6 @@ class UserSpider(scrapy.Spider):
                 continue
             if not url.startswith("http"):
                 url = HOST + url
-            print(url, "wenda/detail" in url)
             regex_result =  self.user_regex.findall(url)
             if regex_result:
                 uid = str(uuid.uuid4())
@@ -51,6 +51,21 @@ class UserSpider(scrapy.Spider):
                                      meta={
                                          "user_id": user_id
                                      })
+            wenda_regex_result = self.wenda_user_regex.findall(url)
+            if wenda_regex_result:
+                user_id = int(wenda_regex_result[0])
+                if user_id not in self.crawled_user_id:
+                    uid = str(uuid.uuid4())
+                    yield scrapy.Request(f"http://www.mafengwo.cn/u/{user_id}.html",
+                                         cookies={
+                                             "mfw_uuid": uid,
+                                             "__mfwuuid": uid,
+                                         },
+                                         callback=self.user_parse,
+                                         meta={
+                                             "user_id": user_id
+                                         }
+                                         )
             if "wenda/detail" in url :
                 yield scrapy.Request(url)
 
